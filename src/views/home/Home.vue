@@ -3,11 +3,24 @@
     <nav-bar class="home-nav">
       <span slot="center">购物街</span>
     </nav-bar>
-    <b-scroll :probe-type="3" :pull-up-load="true" :click="true" @pullingUp="loadMore" @scroll="scroll" class="content" ref="bscroll">
-      <home-swiper :banners="banners"/>
+    <tab-control ref="tabControl1"
+                 @tabClick="tabClick"
+                 class="fixed"
+                 v-show="isTabFixed"
+                 :titles="['流行','新款','精选']"/>
+    <b-scroll :probe-type="3"
+              :pull-up-load="true"
+              :click="true"
+              @pullingUp="loadMore"
+              @scroll="scroll"
+              class="content"
+              ref="bscroll">
+      <home-swiper :banners="banners" @swiperImageLoad="swiperImageLoad"/>
       <recommend-view :recommends="recommends"/>
       <feature-view />
-      <tab-control @tabClick="tabClick" class="tab-control" :titles="['流行','新款','精选']"/>
+      <tab-control ref="tabControl2"
+                   @tabClick="tabClick"
+                   :titles="['流行','新款','精选']"/>
       <goods-list :goods="showGoods"></goods-list>
     </b-scroll>
     <back-top v-show="showBackTop" @click.native="backClick"/>
@@ -26,6 +39,8 @@
   import BackTop from 'components/content/backTop/BackTop'
 
   import {getHomeMultidata,getHomeGoods} from 'network/home'
+
+  import {debounce} from "common/utils";
 
   export default {
     name: "Home",
@@ -50,7 +65,10 @@
           'sell': {page: 0, list: []}
         },
         currentType: 'pop',
-        showBackTop: false
+        showBackTop: false,
+        tabOffsetTop: 0,
+        isTabFixed: false,
+        scrollY: [0,0,0]
       }
     },
     created() {
@@ -60,15 +78,37 @@
       this.getHomeGoods('new');
       this.getHomeGoods('sell');
 
+
     },
     mounted() {
-      this.refresh();
+
+      const refresh = debounce(this.$refs.bscroll.refresh, 200)
+
+      this.$bus.$on('itemImgLoad',() => {
+        refresh();
+      })
+    },
+    updated() {
+      // console.log('updated');
+      // const index = this.currentType==='pop'?0:this.currentType==='new'?1:2;
+      // this.$refs.bscroll.scrollTo(0,this.scrollY[index],0)
+      let img = document.getElementsByClassName('content')[0].getElementsByTagName('img')
+
     },
     methods: {
       /**
        * 事件监听相关方法
        */
       tabClick(index) {
+        // console.log('$refs   ' + this.$refs.bscroll.scroll.y);
+
+        for (let i = 0; i < this.scrollY.length; i++) {
+          if (this.scrollY[i] > -this.tabOffsetTop) {
+            this.scrollY[i] = this.$refs.bscroll.scroll.y < -this.tabOffsetTop?-this.tabOffsetTop:this.$refs.bscroll.scroll.y;
+          }
+        }
+        this.scrollY[this.currentType==='pop'?0:this.currentType==='new'?1:2] = this.$refs.bscroll.scroll.y
+        // console.log(this.scrollY);
         switch (index) {
           case 0:
             this.currentType = 'pop';
@@ -80,9 +120,20 @@
             this.currentType = 'sell';
             break;
         }
+        // console.log('scrollY    '+ this.scrollY);
+        // console.log('scrollY[index]    '+ this.scrollY[index]);
+        // console.log('-------------------------');
+        // console.log('before refresh   ' + this.$refs.bscroll.scroll.maxScrollY);
+        this.$refs.bscroll.refresh();
+        // console.log('after refresh  ' + this.$refs.bscroll.scroll.maxScrollY);
+        this.$refs.bscroll.scrollTo(0,this.scrollY[index],0);
+        this.$refs.tabControl1.currentIndex = index;
+        this.$refs.tabControl2.currentIndex = index;
       },
       scroll(position) {
         this.showBackTop = position.y < -1000
+
+        this.isTabFixed = position.y < -this.tabOffsetTop
       },
 
       loadMore() {
@@ -90,14 +141,13 @@
       },
 
       backClick() {
+
         this.$refs.bscroll.scrollTo(0,0,500)
       },
 
-      refresh() {
-        this.$bus.$on('itemImgLoad',() => {
-          console.log(this);
-          this.$refs.bscroll.refresh();
-        })
+      swiperImageLoad() {
+        this.tabOffsetTop = this.$refs.tabControl2.$el.offsetTop;
+        console.log(this.tabOffsetTop);
       },
 
       /**
@@ -125,6 +175,20 @@
           this.goods[type].page += 1
         })
       }
+    },
+    activated() {
+      // console.log('activated');
+      // console.log(this.currentType);
+      // console.log(this.scrollY);
+
+      const index = this.currentType==='pop'?0:this.currentType==='new'?1:2;
+      console.log(this.scrollY[index]);
+      this.$refs.bscroll.scrollTo(0,this.scrollY[index],0);
+      console.log('-----activated----');
+      this.$refs.bscroll.refresh();
+    },
+    deactivated() {
+      this.scrollY[this.currentType==='pop'?0:this.currentType==='new'?1:2] = this.$refs.bscroll.scroll.y
     },
     computed: {
       showGoods() {
@@ -154,12 +218,12 @@
     z-index: 9;
   }
 
-  .tab-control{
-    position: sticky;
-    top: 44px;
-    background-color: #fff;
-    z-index: 9;
-  }
+  /*.tab-control{*/
+  /*  position: sticky;*/
+  /*  top: 44px;*/
+  /*  background-color: #fff;*/
+  /*  z-index: 9;*/
+  /*}*/
 
   .content{
     overflow: hidden;
@@ -169,6 +233,12 @@
     bottom: 49px;
     left: 0;
     right: 0;
+  }
+
+  .fixed{
+    position: relative;
+    background-color: #fff;
+    z-index: 9;
   }
 
   /*.content{*/

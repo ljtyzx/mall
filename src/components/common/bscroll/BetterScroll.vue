@@ -36,20 +36,30 @@
         probeType: this.probeType,
         click: this.click
       });
-      this.scroll.on('scroll', position => {
-        this.$emit('scroll', position)
-      });
-      this.scroll.on('pullingUp', () => {
-        this.$emit('pullingUp');
-        this.scroll.finishPullUp();
-      });
+      // 监听实时滚动
+      if (this.probeType === 2 || this.probeType === 3) {
+        this.scroll.on('scroll', position => {
+          this.$emit('scroll', position)
+        });
+      }
+      if (this.pullUpLoad) {
+        this.scroll.on('pullingUp', () => {
+          this.$emit('pullingUp');
+          this.finishPullUp();
+        });
+      }
     },
     methods: {
       scrollTo(x, y, time = 300) {
+        this.refresh();
         this.scroll && this.scroll.scrollTo &&this.scroll.scrollTo(x, y, time)
       },
       refresh() {
+
         this.scroll && this.scroll.refresh()
+      },
+      finishPullUp() {
+        this.scroll && this.scroll.finishPullUp()
       }
     }
   }
