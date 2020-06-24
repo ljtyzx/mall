@@ -3,7 +3,7 @@
     <table v-for="(table, index) in paramInfo.sizes"
            class="info-size" :key="index">
       <tr v-for="(tr, indey) in table" :key="indey">
-        <td v-for="(td, indez) in tr" :key="indez">{{td}}</td>
+        <td v-for="(td, indez) in tr" :class="{'text-center':indez>0}" :key="indez">{{td}}</td>
       </tr>
     </table>
     <table class="info-param">
@@ -51,6 +51,10 @@
 
   .param-info table tr td {
     border-bottom: 1px solid rgba(100,100,100,.1);
+  }
+
+  .text-center{
+    text-align: center;
   }
 
   .info-param-key {

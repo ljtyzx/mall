@@ -1,6 +1,6 @@
 <template>
   <div id="detail">
-    <detail-nav-bar @titleClick="titleClick" class="detail-nav"/>
+    <detail-nav-bar @titleClick="titleClick" ref="nav" class="detail-nav"/>
     <scroll :probe-type="3"
             :click="true"
             @scroll="scroll"
@@ -14,7 +14,9 @@
       <detail-comment-info ref="comment" :comment-info="commentInfo" />
       <goods-list ref="recommend" :goods="recommend" />
     </scroll>
+    <detail-bottom-bar @addToCart="addToCart" />
     <back-top v-show="showBackTop" @click.native="backClick"/>
+<!--    <toast :message="message" :show="showToast" />-->
   </div>
 </template>
 
@@ -26,19 +28,24 @@
   import DetailGoodsInfo from './childComps/DetailGoodsInfo'
   import DetailParamInfo from './childComps/DetailParamInfo'
   import DetailCommentInfo from './childComps/DetailCommentInfo'
-  import BackTop from 'components/content/backTop/BackTop'
+  import DetailBottomBar from './childComps/DetailBottomBar'
+
   import Scroll from 'components/common/bscroll/BetterScroll'
+  // import Toast from 'components/common/toast/Toast'
   import GoodsList from 'components/content/goods/GoodsList'
 
-  import {itemListenerMixin} from "common/mixin"
+  import {itemListenerMixin,backTopMixin} from "common/mixin"
   import {getDetail,getRecommend,Goods,Shop,GoodsParam} from "network/detail";
   import {debounce} from "../../common/utils";
+
+  import {mapActions} from  'vuex'
 
   export default {
     name: "Detail",
     data() {
       return {
         iid: null,
+        currentIndex: 0,
         topImages: [],
         goods: {},
         shop: {},
@@ -48,7 +55,8 @@
         recommend: [],
         themeTopYs: [],
         getThemeTopY: null,
-        showBackTop: false,
+        // message: '',
+        // showToast: false
       }
     },
     components: {
@@ -59,12 +67,13 @@
       DetailGoodsInfo,
       DetailParamInfo,
       DetailCommentInfo,
-      BackTop,
+      DetailBottomBar,
       GoodsList,
+      // Toast,
       Scroll,
     },
     created() {
-      console.log('detail created');
+      // console.log('detail created');
       // 获取商品iid
       this.iid = this.$route.params.iid
 
@@ -92,18 +101,6 @@
           if(data.rate.cRate !== 0) {
             this.commentInfo = data.rate.list[0];
           }
-
-          this.$nextTick(() => {
-            this.themeTopYs = [];
-
-            this.themeTopYs.push(0);
-            this.themeTopYs.push(this.$refs.param.$el.offsetTop);
-            this.themeTopYs.push(this.$refs.comment.$el.offsetTop);
-            this.themeTopYs.push(this.$refs.recommend.$el.offsetTop);
-
-            console.log(this.themeTopYs);
-          })
-
         });
 
       // 请求推荐数据
@@ -119,28 +116,100 @@
         this.themeTopYs.push(this.$refs.param.$el.offsetTop);
         this.themeTopYs.push(this.$refs.comment.$el.offsetTop);
         this.themeTopYs.push(this.$refs.recommend.$el.offsetTop);
+        this.themeTopYs.push(Number.MAX_VALUE);
 
-        console.log(this.themeTopYs);
-      })
+        // console.log(this.themeTopYs);
+      }, 100)
 
     },
-    mixins: [itemListenerMixin],
+    mixins: [itemListenerMixin,backTopMixin],
     mounted() {
     },
     methods:{
+      ...mapActions({
+        addCart: 'addCart'
+      }),
       detailImageLoad() {
         this.$refs.scroll.refresh();
 
         this.getThemeTopY();
       },
       scroll(position) {
-        this.showBackTop = position.y < -1000;
+        this.listenShowBckTop(position);
+        
+        // const positionY = -position.y;
+        // const length = this.themeTopYs.length
+        // for (let i = 0;i < length; i++) {
+        //   if (this.currentIndex !== i &&
+        //     ((i < length-1 && positionY >= this.themeTopYs[i] && positionY <= this.themeTopYs[i+1]) ||
+        //       (i === length-1 && positionY >= this.themeTopYs[i]))) {
+        //     this.currentIndex = i;
+        //     this.$refs.nav.currentIndex = this.currentIndex;
+        //   }
+        // }
+
+        // const positionY = -position.y;
+        // this.themeTopYs.filter((value,index) => {
+        //   let isBreak = false;
+        //   if (isBreak) {
+        //     return false;
+        //   }
+        //   if (positionY >= value) {
+        //     this.themeTopYs.filter((value1,index1) => {
+        //       if (isBreak) {
+        //         return false;
+        //       }
+        //       if (index1 > index && positionY < value1) {
+        //         this.currentIndex = index1-1;
+        //         isBreak = true;
+        //       }
+        //       this.currentIndex = index;
+        //     })
+        //   }
+        // })
+
+        const positionY = -position.y;
+        let length = this.themeTopYs.length
+        for (let i = 0; i < length - 1; i++) {
+          if (this.currentIndex !== i && (positionY >= this.themeTopYs[i] && positionY < this.themeTopYs[i+1])) {
+            this.currentIndex = i;
+          }
+        }
       },
-      backClick() {
-        this.$refs.scroll.scrollTo(0,0,500);
-      },
+
       titleClick(index) {
-        this.$refs.scroll.scrollTo(0,-this.themeTopYs[index],100)
+        this.$refs.scroll.scrollTo(0,-this.themeTopYs[index],500)
+      },
+
+      addToCart() {
+        // 1.购物车需展示信息
+        const product = {};
+        product.image = this.topImages[0];
+        product.title = this.goods.title;
+        product.desc = this.goods.desc;
+        product.price = this.goods.realPrice;
+        product.iid = this.iid;
+
+        this.addCart(product).then(res => {
+
+          this.$toast.show(res , 2000)
+          // this.showToast = true;
+          // this.message = res;
+          //
+          // setTimeout(() => {
+          //   this.show = false;
+          //   this.message = ''
+          // }, 1500)
+        })
+        // this.$store.dispatch('addCart',product).then(res => {
+        //
+        // })
+      }
+    },
+    watch: {
+      currentIndex(newValue,oldValue) {
+
+        this.$refs.nav.currentIndex = newValue
       }
     },
     destroyed() {

@@ -41,6 +41,7 @@
   import {getHomeMultidata,getHomeGoods} from 'network/home'
 
   import {debounce} from "common/utils";
+  import {backTopMixin} from "common/mixin";
 
   export default {
     name: "Home",
@@ -65,7 +66,7 @@
           'sell': {page: 0, list: []}
         },
         currentType: 'pop',
-        showBackTop: false,
+        // showBackTop: false,
         tabOffsetTop: 0,
         isTabFixed: false,
         scrollY: [0,0,0],
@@ -81,6 +82,7 @@
 
 
     },
+    mixins: [backTopMixin],
     mounted() {
 
 
@@ -131,7 +133,7 @@
         this.$refs.tabControl2.currentIndex = index;
       },
       scroll(position) {
-        this.showBackTop = position.y < -1000
+        this.listenShowBckTop(position);
 
         this.isTabFixed = position.y < -this.tabOffsetTop
       },
@@ -140,14 +142,9 @@
         this.getHomeGoods(this.currentType);
       },
 
-      backClick() {
-
-        this.$refs.bscroll.scrollTo(0,0,500)
-      },
-
       swiperImageLoad() {
         this.tabOffsetTop = this.$refs.tabControl2.$el.offsetTop;
-        console.log(this.tabOffsetTop);
+        // console.log(this.tabOffsetTop);
       },
 
       /**
@@ -187,9 +184,9 @@
       this.$bus.$on('itemImgLoad', this.itemImgListener);
 
       const index = this.currentType==='pop'?0:this.currentType==='new'?1:2;
-      console.log(this.scrollY[index]);
+      // console.log(this.scrollY[index]);
       this.$refs.bscroll.scrollTo(0,this.scrollY[index],0);
-      console.log('-----activated----');
+      // console.log('-----activated----');
       this.$refs.bscroll.refresh();
     },
     deactivated() {
