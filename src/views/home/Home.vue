@@ -68,7 +68,8 @@
         showBackTop: false,
         tabOffsetTop: 0,
         isTabFixed: false,
-        scrollY: [0,0,0]
+        scrollY: [0,0,0],
+        itemImgListener: null
       }
     },
     created() {
@@ -82,17 +83,13 @@
     },
     mounted() {
 
-      const refresh = debounce(this.$refs.bscroll.refresh, 200)
 
-      this.$bus.$on('itemImgLoad',() => {
-        refresh();
-      })
     },
     updated() {
       // console.log('updated');
       // const index = this.currentType==='pop'?0:this.currentType==='new'?1:2;
       // this.$refs.bscroll.scrollTo(0,this.scrollY[index],0)
-      let img = document.getElementsByClassName('content')[0].getElementsByTagName('img')
+      // let img = document.getElementsByClassName('content')[0].getElementsByTagName('img')
 
     },
     methods: {
@@ -124,9 +121,12 @@
         // console.log('scrollY[index]    '+ this.scrollY[index]);
         // console.log('-------------------------');
         // console.log('before refresh   ' + this.$refs.bscroll.scroll.maxScrollY);
-        this.$refs.bscroll.refresh();
+
         // console.log('after refresh  ' + this.$refs.bscroll.scroll.maxScrollY);
-        this.$refs.bscroll.scrollTo(0,this.scrollY[index],0);
+        this.$nextTick(() => {
+          this.$refs.bscroll.refresh();
+          this.$refs.bscroll.scrollTo(0,this.scrollY[index],0);
+        })
         this.$refs.tabControl1.currentIndex = index;
         this.$refs.tabControl2.currentIndex = index;
       },
@@ -180,6 +180,11 @@
       // console.log('activated');
       // console.log(this.currentType);
       // console.log(this.scrollY);
+      const refresh = debounce(this.$refs.bscroll.refresh, 200);
+      this.itemImgListener = () => {
+        refresh();
+      };
+      this.$bus.$on('itemImgLoad', this.itemImgListener);
 
       const index = this.currentType==='pop'?0:this.currentType==='new'?1:2;
       console.log(this.scrollY[index]);
@@ -189,6 +194,8 @@
     },
     deactivated() {
       this.scrollY[this.currentType==='pop'?0:this.currentType==='new'?1:2] = this.$refs.bscroll.scroll.y
+
+      this.$bus.$off('itemImgLoad',this.itemImgListener)
     },
     computed: {
       showGoods() {
